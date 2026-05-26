@@ -1,5 +1,8 @@
 #!/bin/bash
+# Railway 端口适配
+PORT=${PORT:-2333}
 
+if [[ -z "${Password}" ]]; then
 if [[ -z "${Password}" ]]; then
   Password="5c301bb8-6c77-41a0-a606-4ba11bbab084"
 fi
@@ -14,7 +17,14 @@ mv /v2 /usr/bin/v2
 if [ ! -d /etc/shadowsocks-libev ]; then  
   mkdir /etc/shadowsocks-libev
 fi
+# 修改监听地址为 0.0.0.0（Railway 要求）
+sed -i 's/"server":"127.0.0.1"/"server":"0.0.0.0"/' /conf/shadowsocks-libev_config.json
 
+sed -e "/^#/d"\
+    -e "s/\${PASSWORD}/${Password}/g"\
+    -e "s/\${ENCRYPT}/${ENCRYPT}/g"\
+    -e "s|\${V2_Path}|${V2_Path}|g"\
+    /conf/shadowsocks-libev_config.json >  /etc/shadowsocks-libev/config.json
 # TODO: bug when PASSWORD contain '/'
 sed -e "/^#/d"\
     -e "s/\${PASSWORD}/${Password}/g"\
@@ -40,6 +50,7 @@ else
   echo -n "${ss}" | qrencode -s 6 -o /wwwroot/vpn.png
 fi
 
-ss-server -c /etc/shadowsocks-libev/config.json &
+# 使用 Railway 的 PORT 环境变量启动
+ss-server -c /etc/shadowsocks-libev/config.json -u --port $PORT &
 rm -rf /etc/nginx/sites-enabled/default
 nginx -g 'daemon off;'
